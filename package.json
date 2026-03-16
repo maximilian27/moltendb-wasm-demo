@@ -1,0 +1,18 @@
+{
+  "name": "moltendb-wasm-demo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "@moltendb/core": "file:public/moltendb-core-0.1.0-alpha.1.tgz",
+    "@moltendb/query": "file:public/moltendb-query-0.1.0.tgz"
+  }
+}

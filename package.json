@@ -12,7 +12,7 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
-    "@moltendb/core": "file:public/moltendb-core-0.1.0-alpha.8.tgz",
-    "@moltendb/query": "file:public/moltendb-query-0.1.0.tgz"
+    "@moltendb-web/core": "^0.1.0-alpha.8",
+    "@moltendb-web/query": "^0.1.0"
   }
 }

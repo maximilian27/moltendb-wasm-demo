@@ -511,7 +511,7 @@
 </div>
 
 <script type="module">
-import { MoltenDB } from '@moltendb/core';
+import { MoltenDB } from '@moltendb-web/core';
 
 // ── DB init ──────────────────────────────────────────────────────────────────
 let db = null;
@@ -537,7 +537,7 @@ async function initDB() {
     try {
         addLog('Initializing MoltenDB WASM worker…', 'info');
         // Let Vite handle the worker correctly
-        const workerUrl = new URL('@moltendb/core/worker', import.meta.url).href;
+        const workerUrl = new URL('@moltendb-web/core/worker', import.meta.url).href;
         db = new MoltenDB('moltendb_demo', { syncEnabled: false, workerUrl });
         await db.init();
         addLog('✅ MoltenDB ready — OPFS storage active', 'success');

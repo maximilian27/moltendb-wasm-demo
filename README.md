@@ -79,4 +79,4 @@ Both produce identical results — the query builder simply constructs the JSON 
 
 ## License
 
-[Business Source License 1.1](https://github.com/maximilian27/MoltenDB/blob/main/LICENSE.md) — free for personal use and organisations under $5M annual revenue.
+MIT OR Apache-2.0

@@ -1,896 +1,207 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <title>MoltenDB - Query Explorer</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+  <meta charset="utf-8">
+  <title>MoltenDB - Query Explorer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #e0e0e0; height: 100vh; overflow: hidden; display: flex; flex-direction: column;
+    }
+    header {
+      padding: 16px 24px; background: rgba(0, 0, 0, 0.4);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; gap: 16px;
+    }
+    header div { display: flex; }
+    header h1 {
+      display: flex; align-items: center; font-size: 1.4em; font-weight: 700;
+      background: linear-gradient(90deg, #e94560, #f5a623);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    header img { height: 5em; margin-right: 10px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)); }
+    #status { font-size: 0.85em; padding: 4px 12px; border-radius: 20px; background: rgba(255, 255, 255, 0.08); }
+    #status.loading { color: #ffd700; }
+    #status.ready { color: #51cf66; background: rgba(81, 207, 102, 0.12); }
+    #status.error { color: #ff6b6b; background: rgba(255, 107, 107, 0.12); }
+    .main { display: grid; grid-template-columns: 320px 1fr 1fr 260px; grid-template-rows: minmax(0, 1fr); flex: 1; overflow: hidden; }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            color: #e0e0e0;
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
+    /* ── Left: query list ── */
+    .query-list-panel { background: rgba(0, 0, 0, 0.3); border-right: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; overflow: hidden; }
+    .panel-title { padding: 12px 16px; font-size: 0.75em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255, 255, 255, 0.4); border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+    .query-search { padding: 10px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+    .query-search input { width: 100%; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 6px 10px; color: #e0e0e0; font-size: 0.85em; outline: none; }
+    .query-search input:focus { border-color: #e94560; }
+    .query-list { flex: 1; overflow-y: auto; padding: 8px 0; min-height: 0; }
+    .query-group-label { padding: 8px 16px 4px; font-size: 0.7em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255, 255, 255, 0.3); }
+    .query-item { padding: 8px 16px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s; display: flex; align-items: flex-start; gap: 8px; }
+    .query-item:hover { background: rgba(255, 255, 255, 0.05); border-left-color: #e94560; }
+    .query-item.active { background: rgba(233, 69, 96, 0.12); border-left-color: #e94560; }
+    .query-item-badge { font-size: 0.65em; font-weight: 700; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+    .badge-get { background: rgba(81, 207, 102, 0.2); color: #51cf66; }
+    .badge-set { background: rgba(74, 144, 226, 0.2); color: #4a90e2; }
+    .badge-update { background: rgba(245, 166, 35, 0.2); color: #f5a623; }
+    .badge-delete { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+    .query-item-text { font-size: 0.82em; line-height: 1.4; color: rgba(255, 255, 255, 0.75); }
+    .query-item-num { font-size: 0.7em; color: rgba(255, 255, 255, 0.25); flex-shrink: 0; margin-top: 2px; }
 
-        header {
-            padding: 16px 24px;
-            background: rgba(0,0,0,0.4);
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
+    /* ── Middle: editor ── */
+    .editor-panel { display: flex; flex-direction: column; border-right: 1px solid rgba(255, 255, 255, 0.08); overflow: hidden; }
+    .editor-toolbar { padding: 10px 16px; background: rgba(0, 0, 0, 0.2); border-bottom: 1px solid rgba(255, 255, 255, 0.06); display: flex; align-items: center; gap: 10px; }
+    .editor-toolbar .panel-title { padding: 0; border: none; flex: 1; }
+    .action-select { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; color: #e0e0e0; padding: 5px 10px; font-size: 0.82em; outline: none; cursor: pointer; }
+    .run-btn { background: linear-gradient(135deg, #e94560, #c0392b); color: white; border: none; padding: 7px 18px; border-radius: 6px; font-size: 0.85em; font-weight: 700; cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em; }
+    .run-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(233, 69, 96, 0.4); }
+    .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .seed-btn { background: rgba(74, 144, 226, 0.2); color: #4a90e2; border: 1px solid rgba(74, 144, 226, 0.3); padding: 5px 12px; border-radius: 6px; font-size: 0.8em; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .seed-btn:hover:not(:disabled) { background: rgba(74, 144, 226, 0.3); }
+    .seed-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .clear-btn { background: rgba(255, 107, 107, 0.15); color: #ff6b6b; border: 1px solid rgba(255, 107, 107, 0.3); padding: 5px 12px; border-radius: 6px; font-size: 0.8em; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .clear-btn:hover:not(:disabled) { background: rgba(255, 107, 107, 0.28); }
+    .clear-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #editor { flex: 1; background: #0d1117; color: #c9d1d9; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; font-size: 13px; line-height: 1.6; padding: 16px; border: none; outline: none; resize: none; tab-size: 2; }
 
-        header div {
-            display: flex;
-        }
+    /* ── Right: result ── */
+    .result-panel { display: flex; flex-direction: column; overflow: hidden; }
+    .result-toolbar { padding: 10px 16px; background: rgba(0, 0, 0, 0.2); border-bottom: 1px solid rgba(255, 255, 255, 0.06); display: flex; align-items: center; gap: 10px; }
+    .result-meta { font-size: 0.75em; color: rgba(255, 255, 255, 0.35); margin-left: auto; }
+    #result { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+    .result-placeholder { color: rgba(255, 255, 255, 0.2); font-style: italic; font-family: inherit; font-size: 13px; padding: 40px 0; text-align: center; }
+    .json-key { color: #79c0ff; } .json-str { color: #a5d6ff; } .json-num { color: #f2cc60; } .json-bool { color: #ff7b72; } .json-null { color: #8b949e; } .result-error { color: #ff6b6b; }
 
-        header h1 {
-            display: flex;
-            align-items: center;
-            font-size: 1.4em;
-            font-weight: 700;
-            background: linear-gradient(90deg, #e94560, #f5a623);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
+    /* ── Log panel ── */
+    .log-panel { border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0, 0, 0, 0.25); display: flex; flex-direction: column; max-height: 180px; min-height: 120px; overflow: hidden; }
+    .log-toolbar { padding: 6px 16px; background: rgba(0, 0, 0, 0.2); border-bottom: 1px solid rgba(255, 255, 255, 0.06); display: flex; align-items: center; gap: 10px; }
+    .log-toolbar .panel-title { padding: 0; border: none; flex: 1; }
+    .log-clear-btn { background: none; border: 1px solid rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.72em; cursor: pointer; }
+    .log-clear-btn:hover { color: #e0e0e0; border-color: rgba(255, 255, 255, 0.3); }
+    #logEntries { flex: 1; overflow-y: auto; padding: 6px 16px; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; font-size: 11.5px; line-height: 1.7; }
+    .log-entry { display: flex; gap: 8px; }
+    .log-ts { color: rgba(255, 255, 255, 0.25); flex-shrink: 0; }
+    .log-info { color: #87ceeb; } .log-success { color: #51cf66; } .log-error { color: #ff6b6b; } .log-warn { color: #ffd700; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
 
-        header img {
-            height: 5em;
-            margin-right: 10px;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-        }
+    /* ── Live events panel ── */
+    .events-panel { display: flex; flex-direction: column; border-left: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0, 0, 0, 0.25); overflow: hidden; }
+    .events-toolbar { padding: 10px 16px; background: rgba(0, 0, 0, 0.2); border-bottom: 1px solid rgba(255, 255, 255, 0.06); display: flex; align-items: center; gap: 8px; }
+    .events-toolbar .panel-title { padding: 0; border: none; flex: 1; }
+    .ws-dot { width: 8px; height: 8px; border-radius: 50%; background: #51cf66; flex-shrink: 0; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    #eventEntries { flex: 1; overflow-y: auto; padding: 8px 0; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; font-size: 11px; line-height: 1.5; }
+    .event-entry { padding: 6px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; gap: 2px; }
+    .event-entry:hover { background: rgba(255, 255, 255, 0.03); }
+    .event-ts { color: rgba(255, 255, 255, 0.25); font-size: 10px; }
+    .event-badge { display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-right: 4px; }
+    .event-change { background: rgba(81, 207, 102, 0.2); color: #51cf66; }
+    .event-delete { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+    .event-drop { background: rgba(245, 166, 35, 0.2); color: #f5a623; }
+    .event-col { color: #79c0ff; } .event-key { color: #a5d6ff; } .event-ver { color: #f2cc60; }
+    .event-placeholder { padding: 24px 12px; text-align: center; color: rgba(255, 255, 255, 0.2); font-size: 0.78em; font-style: italic; }
+    .events-clear-btn { background: none; border: 1px solid rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.72em; cursor: pointer; }
+    .events-clear-btn:hover { color: #e0e0e0; border-color: rgba(255, 255, 255, 0.3); }
 
-        #status {
-            font-size: 0.85em;
-            padding: 4px 12px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.08);
-        }
-        #status.loading { color: #ffd700; }
-        #status.ready   { color: #51cf66; background: rgba(81,207,102,0.12); }
-        #status.error   { color: #ff6b6b; background: rgba(255,107,107,0.12); }
-
-        .main {
-            display: grid;
-            grid-template-columns: 320px 1fr 1fr 260px;
-            grid-template-rows: minmax(0, 1fr);
-            flex: 1;
-            overflow: hidden;
-        }
-
-        /* ── Left: query list ── */
-        .query-list-panel {
-            background: rgba(0,0,0,0.3);
-            border-right: 1px solid rgba(255,255,255,0.08);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .panel-title {
-            padding: 12px 16px;
-            font-size: 0.75em;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: rgba(255,255,255,0.4);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-
-        .query-search {
-            padding: 10px 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-
-        .query-search input {
-            width: 100%;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 6px;
-            padding: 6px 10px;
-            color: #e0e0e0;
-            font-size: 0.85em;
-            outline: none;
-        }
-
-        .query-search input:focus {
-            border-color: #e94560;
-        }
-
-        .query-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px 0;
-            min-height: 0;
-        }
-
-        .query-group-label {
-            padding: 8px 16px 4px;
-            font-size: 0.7em;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: rgba(255,255,255,0.3);
-        }
-
-        .query-item {
-            padding: 8px 16px;
-            cursor: pointer;
-            border-left: 3px solid transparent;
-            transition: all 0.15s;
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-        }
-
-        .query-item:hover {
-            background: rgba(255,255,255,0.05);
-            border-left-color: #e94560;
-        }
-
-        .query-item.active {
-            background: rgba(233,69,96,0.12);
-            border-left-color: #e94560;
-        }
-
-        .query-item-badge {
-            font-size: 0.65em;
-            font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 4px;
-            flex-shrink: 0;
-            margin-top: 1px;
-        }
-
-        .badge-get    { background: rgba(81,207,102,0.2); color: #51cf66; }
-        .badge-set    { background: rgba(74,144,226,0.2); color: #4a90e2; }
-        .badge-update { background: rgba(245,166,35,0.2); color: #f5a623; }
-        .badge-delete { background: rgba(255,107,107,0.2); color: #ff6b6b; }
-
-        .query-item-text {
-            font-size: 0.82em;
-            line-height: 1.4;
-            color: rgba(255,255,255,0.75);
-        }
-
-        .query-item-num {
-            font-size: 0.7em;
-            color: rgba(255,255,255,0.25);
-            flex-shrink: 0;
-            margin-top: 2px;
-        }
-
-        /* ── Middle: editor ── */
-        .editor-panel {
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid rgba(255,255,255,0.08);
-            overflow: hidden;
-        }
-
-        .editor-toolbar {
-            padding: 10px 16px;
-            background: rgba(0,0,0,0.2);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .editor-toolbar .panel-title {
-            padding: 0;
-            border: none;
-            flex: 1;
-        }
-
-        .action-select {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 6px;
-            color: #e0e0e0;
-            padding: 5px 10px;
-            font-size: 0.82em;
-            outline: none;
-            cursor: pointer;
-        }
-
-        .run-btn {
-            background: linear-gradient(135deg, #e94560, #c0392b);
-            color: white;
-            border: none;
-            padding: 7px 18px;
-            border-radius: 6px;
-            font-size: 0.85em;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-            letter-spacing: 0.03em;
-        }
-
-        .run-btn:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(233,69,96,0.4);
-        }
-
-        .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-        .seed-btn {
-            background: rgba(74,144,226,0.2);
-            color: #4a90e2;
-            border: 1px solid rgba(74,144,226,0.3);
-            padding: 5px 12px;
-            border-radius: 6px;
-            font-size: 0.8em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .seed-btn:hover:not(:disabled) {
-            background: rgba(74,144,226,0.3);
-        }
-
-        .seed-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-        .clear-btn {
-            background: rgba(255,107,107,0.15);
-            color: #ff6b6b;
-            border: 1px solid rgba(255,107,107,0.3);
-            padding: 5px 12px;
-            border-radius: 6px;
-            font-size: 0.8em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .clear-btn:hover:not(:disabled) {
-            background: rgba(255,107,107,0.28);
-        }
-
-        .clear-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-        #editor {
-            flex: 1;
-            background: #0d1117;
-            color: #c9d1d9;
-            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-            font-size: 13px;
-            line-height: 1.6;
-            padding: 16px;
-            border: none;
-            outline: none;
-            resize: none;
-            tab-size: 2;
-        }
-
-        /* ── Right: result ── */
-        .result-panel {
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .result-toolbar {
-            padding: 10px 16px;
-            background: rgba(0,0,0,0.2);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .result-meta {
-            font-size: 0.75em;
-            color: rgba(255,255,255,0.35);
-            margin-left: auto;
-        }
-
-        #result {
-            flex: 1;
-            min-height: 0;
-            overflow-y: auto;
-            padding: 16px;
-            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-            font-size: 13px;
-            line-height: 1.6;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        .result-placeholder {
-            color: rgba(255,255,255,0.2);
-            font-style: italic;
-            font-family: inherit;
-            font-size: 13px;
-            padding: 40px 0;
-            text-align: center;
-        }
-
-        /* JSON syntax highlighting */
-        .json-key    { color: #79c0ff; }
-        .json-str    { color: #a5d6ff; }
-        .json-num    { color: #f2cc60; }
-        .json-bool   { color: #ff7b72; }
-        .json-null   { color: #8b949e; }
-
-        .result-error {
-            color: #ff6b6b;
-        }
-
-        /* ── Log panel ── */
-        .log-panel {
-            border-top: 1px solid rgba(255,255,255,0.08);
-            background: rgba(0,0,0,0.25);
-            display: flex;
-            flex-direction: column;
-            max-height: 180px;
-            min-height: 120px;
-            overflow: hidden;
-        }
-
-        .log-toolbar {
-            padding: 6px 16px;
-            background: rgba(0,0,0,0.2);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .log-toolbar .panel-title { padding: 0; border: none; flex: 1; }
-
-        .log-clear-btn {
-            background: none;
-            border: 1px solid rgba(255,255,255,0.12);
-            color: rgba(255,255,255,0.4);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.72em;
-            cursor: pointer;
-        }
-        .log-clear-btn:hover { color: #e0e0e0; border-color: rgba(255,255,255,0.3); }
-
-        #logEntries {
-            flex: 1;
-            overflow-y: auto;
-            padding: 6px 16px;
-            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-            font-size: 11.5px;
-            line-height: 1.7;
-        }
-
-        .log-entry { display: flex; gap: 8px; }
-        .log-ts  { color: rgba(255,255,255,0.25); flex-shrink: 0; }
-        .log-info    { color: #87ceeb; }
-        .log-success { color: #51cf66; }
-        .log-error   { color: #ff6b6b; }
-        .log-warn    { color: #ffd700; }
-
-        /* scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
-
-        /* ── Right: live events ── */
-        .events-panel {
-            display: flex;
-            flex-direction: column;
-            border-left: 1px solid rgba(255,255,255,0.08);
-            background: rgba(0,0,0,0.25);
-            overflow: hidden;
-        }
-        .events-toolbar {
-            padding: 10px 16px;
-            background: rgba(0,0,0,0.2);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .events-toolbar .panel-title { padding: 0; border: none; flex: 1; }
-        .ws-dot {
-            width: 8px; height: 8px; border-radius: 50%;
-            background: #51cf66; flex-shrink: 0;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-        #eventEntries {
-            flex: 1; overflow-y: auto; padding: 8px 0;
-            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-            font-size: 11px; line-height: 1.5;
-        }
-        .event-entry {
-            padding: 6px 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            display: flex; flex-direction: column; gap: 2px;
-        }
-        .event-entry:hover { background: rgba(255,255,255,0.03); }
-        .event-ts { color: rgba(255,255,255,0.25); font-size: 10px; }
-        .event-badge {
-            display: inline-block; font-size: 9px; font-weight: 700;
-            padding: 1px 5px; border-radius: 3px; margin-right: 4px;
-        }
-        .event-change { background: rgba(81,207,102,0.2); color: #51cf66; }
-        .event-delete { background: rgba(255,107,107,0.2); color: #ff6b6b; }
-        .event-drop   { background: rgba(245,166,35,0.2);  color: #f5a623; }
-        .event-col  { color: #79c0ff; }
-        .event-key  { color: #a5d6ff; }
-        .event-ver  { color: #f2cc60; }
-        .event-placeholder {
-            padding: 24px 12px; text-align: center;
-            color: rgba(255,255,255,0.2); font-size: 0.78em; font-style: italic;
-        }
-        .events-clear-btn {
-            background: none; border: 1px solid rgba(255,255,255,0.12);
-            color: rgba(255,255,255,0.4); padding: 2px 8px; border-radius: 4px;
-            font-size: 0.72em; cursor: pointer;
-        }
-        .events-clear-btn:hover { color: #e0e0e0; border-color: rgba(255,255,255,0.3); }
-
-        @media (max-width: 900px) {
-            body { height: auto; overflow: auto; }
-            .main { grid-template-columns: 1fr; grid-template-rows: auto 1fr 1fr auto; height: auto; }
-            .query-list-panel { max-height: 300px; }
-            .events-panel { max-height: 300px; }
-        }
-    </style>
+    @media (max-width: 900px) {
+      body { height: auto; overflow: auto; }
+      .main { grid-template-columns: 1fr; grid-template-rows: auto 1fr 1fr auto; height: auto; }
+      .query-list-panel { max-height: 300px; }
+      .events-panel { max-height: 300px; }
+    }
+  </style>
 </head>
 <body>
 <header>
-    <div>
-        <img src="/logo.png" alt="MoltenDB">
-        <h1>Query Explorer</h1>
-    </div>
-    <span id="status" class="loading">⚙ Initializing WASM…</span>
-    <button class="seed-btn" id="seedBtn" disabled>⚡ Seed Demo Data</button>
-    <button class="clear-btn" id="clearBtn" disabled>🗑 Clear OPFS Data</button>
+  <div>
+    <img src="/logo.png" alt="MoltenDB">
+    <h1>Query Explorer</h1>
+  </div>
+  <span id="status" class="loading">⚙ Initializing WASM…</span>
+  <button class="seed-btn" id="seedBtn" disabled>⚡ Seed Demo Data</button>
+  <button class="clear-btn" id="clearBtn" disabled>🗑 Clear OPFS Data</button>
 </header>
 
 <div class="main">
-    <!-- Left: query list -->
-    <div class="query-list-panel">
-        <div class="panel-title">Example Queries</div>
-        <div class="query-search">
-            <input type="text" id="searchInput" placeholder="Filter queries…">
-        </div>
-        <div class="query-list" id="queryList"></div>
-    </div>
+  <!-- Left: query list -->
+  <div class="query-list-panel">
+    <div class="panel-title">Example Queries</div>
+    <div class="query-search"><input type="text" id="searchInput" placeholder="Filter queries…"></div>
+    <div class="query-list" id="queryList"></div>
+  </div>
 
-    <!-- Middle: editor -->
-    <div class="editor-panel">
-        <div class="editor-toolbar">
-            <div class="panel-title">Query Editor</div>
-            <select class="action-select" id="actionSelect">
-                <option value="get">GET</option>
-                <option value="set">SET</option>
-                <option value="update">UPDATE</option>
-                <option value="delete">DELETE</option>
-                <option value="compact">COMPACT</option>
-            </select>
-            <button class="run-btn" id="runBtn" disabled>▶ Run</button>
-        </div>
-        <textarea id="editor" spellcheck="false" placeholder="Paste or type a JSON query here, then click Run…"></textarea>
+  <!-- Middle: editor -->
+  <div class="editor-panel">
+    <div class="editor-toolbar">
+      <div class="panel-title">Query Editor</div>
+      <select class="action-select" id="actionSelect">
+        <option value="get">GET</option>
+        <option value="set">SET</option>
+        <option value="update">UPDATE</option>
+        <option value="delete">DELETE</option>
+        <option value="compact">COMPACT</option>
+      </select>
+      <button class="run-btn" id="runBtn" disabled>▶ Run</button>
     </div>
+    <textarea id="editor" spellcheck="false" placeholder="Paste or type a JSON query here, then click Run…"></textarea>
+  </div>
 
-    <!-- Right: result + log -->
-    <div class="result-panel">
-        <div class="result-toolbar">
-            <div class="panel-title">Result</div>
-            <span class="result-meta" id="resultMeta"></span>
-        </div>
-        <div id="result"><div class="result-placeholder">Run a query to see results here.</div></div>
-        <div class="log-panel">
-            <div class="log-toolbar">
-                <div class="panel-title">Activity Log</div>
-                <button class="log-clear-btn" id="logClearBtn">Clear</button>
-            </div>
-            <div id="logEntries"></div>
-        </div>
+  <!-- Right: result + log -->
+  <div class="result-panel">
+    <div class="result-toolbar">
+      <div class="panel-title">Result</div>
+      <span class="result-meta" id="resultMeta"></span>
     </div>
+    <div id="result"><div class="result-placeholder">Run a query to see results here.</div></div>
+    <div class="log-panel">
+      <div class="log-toolbar">
+        <div class="panel-title">Activity Log</div>
+        <button class="log-clear-btn" id="logClearBtn">Clear</button>
+      </div>
+      <div id="logEntries"></div>
+    </div>
+  </div>
 
-    <!-- Live Events: WebSocket-style change feed -->
-    <div class="events-panel">
-        <div class="events-toolbar">
-            <div class="ws-dot" id="wsDot"></div>
-            <div class="panel-title">Live Events</div>
-            <button class="events-clear-btn" id="eventsClearBtn">Clear</button>
-        </div>
-        <div id="eventEntries"><div class="event-placeholder">Mutation events will appear here in real time — just like a WebSocket feed.</div></div>
+  <!-- Live Events -->
+  <div class="events-panel">
+    <div class="events-toolbar">
+      <div class="ws-dot" id="wsDot"></div>
+      <div class="panel-title">Live Events</div>
+      <button class="events-clear-btn" id="eventsClearBtn">Clear</button>
     </div>
+    <div id="eventEntries"><div class="event-placeholder">Mutation events will appear here in real time — just like a WebSocket feed.</div></div>
+  </div>
 </div>
 
 <script type="module">
-import { MoltenDB } from '@moltendb-web/core';
+  import {MoltenDB} from '@moltendb-web/core';
 
-// ── DB init ──────────────────────────────────────────────────────────────────
-let db = null;
-const status  = document.getElementById('status');
-const runBtn  = document.getElementById('runBtn');
-const seedBtn = document.getElementById('seedBtn');
-const clearBtn = document.getElementById('clearBtn');
-const logEntries = document.getElementById('logEntries');
+  // ── DB init ──────────────────────────────────────────────────────────────────
+  let db = null;
+  const status = document.getElementById('status');
+  const runBtn = document.getElementById('runBtn');
+  const seedBtn = document.getElementById('seedBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const logEntries = document.getElementById('logEntries');
+  const eventEntries = document.getElementById('eventEntries');
 
-document.getElementById('logClearBtn').addEventListener('click', () => { logEntries.innerHTML = ''; });
+  document.getElementById('logClearBtn').addEventListener('click', () => { logEntries.innerHTML = ''; });
+  document.getElementById('eventsClearBtn').addEventListener('click', () => {
+    eventEntries.innerHTML = '<div class="event-placeholder">Cleared. Run a mutation to see events.</div>';
+  });
 
-function addLog(msg, type = 'info') {
-    const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  function addLog(msg, type = 'info') {
+    const ts = new Date().toLocaleTimeString('en-GB', {hour12: false});
     const entry = document.createElement('div');
     entry.className = 'log-entry';
     entry.innerHTML = `<span class="log-ts">[${ts}]</span><span class="log-${type}">${escapeHtml(msg)}</span>`;
     logEntries.appendChild(entry);
     logEntries.scrollTop = logEntries.scrollHeight;
     console.log(`[MoltenDB ${type.toUpperCase()}] ${msg}`);
-}
+  }
 
-async function initDB() {
-    try {
-        addLog('Initializing MoltenDB WASM worker…', 'info');
-        // Let Vite handle the worker correctly
-        const workerUrl = new URL('@moltendb-web/core/worker', import.meta.url).href;
-        db = new MoltenDB('moltendb_demo', { syncEnabled: false, workerUrl });
-        await db.init();
-        addLog('✅ MoltenDB ready — OPFS storage active', 'success');
-        status.textContent = '✅ Ready';
-        status.className = 'ready';
-        runBtn.disabled = false;
-        seedBtn.disabled = false;
-        clearBtn.disabled = false;
-    } catch (e) {
-        addLog('❌ Init failed: ' + e.message, 'error');
-        console.error('[MoltenDB] Init error:', e);
-        status.textContent = '❌ Init failed: ' + e.message;
-        status.className = 'error';
-    }
-}
-
-// ── Query definitions ────────────────────────────────────────────────────────
-const QUERIES = [
-  // ── Seed data ──
-  { group: 'Seed Data', num: 1, label: 'Seed memory collection', action: 'set', body: {
-    collection: 'memory',
-    data: {
-      mem1: { capacity_gb: 8,  type: 'LPDDR5', speed_mhz: 4266, upgradeable: false },
-      mem2: { capacity_gb: 16, type: 'LPDDR5', speed_mhz: 4266, upgradeable: false },
-      mem3: { capacity_gb: 32, type: 'DDR5',   speed_mhz: 5600, upgradeable: true  },
-      mem4: { capacity_gb: 64, type: 'DDR5',   speed_mhz: 5600, upgradeable: true  },
-      mem5: { capacity_gb: 36, type: 'Unified', speed_mhz: 6400, upgradeable: false }
-    }
-  }},
-  { group: 'Seed Data', num: 2, label: 'Seed display collection', action: 'set', body: {
-    collection: 'display',
-    data: {
-      dsp1: { size_inch: 13.3, resolution: '2560x1600', panel: 'IPS',      refresh_hz: 60,  touchscreen: false, hdr: false },
-      dsp2: { size_inch: 14.0, resolution: '2880x1800', panel: 'OLED',     refresh_hz: 90,  touchscreen: false, hdr: true  },
-      dsp3: { size_inch: 15.6, resolution: '1920x1080', panel: 'IPS',      refresh_hz: 144, touchscreen: false, hdr: false },
-      dsp4: { size_inch: 16.2, resolution: '3456x2234', panel: 'Mini-LED', refresh_hz: 120, touchscreen: false, hdr: true  },
-      dsp5: { size_inch: 14.0, resolution: '2560x1600', panel: 'IPS',      refresh_hz: 165, touchscreen: true,  hdr: false }
-    }
-  }},
-  { group: 'Seed Data', num: 3, label: 'Seed laptops collection', action: 'set', body: {
-    collection: 'laptops',
-    data: {
-      lp1: { brand: 'Lenovo',    model: 'ThinkPad X1 Carbon', price: 1499, in_stock: true,  memory_id: 'mem2', display_id: 'dsp2', tags: ['business','ultrabook','lightweight'], specs: { cpu: { brand: 'Intel', cores: 12, ghz: 3.5 }, battery_wh: 57,  weight_kg: 1.12 } },
-      lp2: { brand: 'Apple',     model: 'MacBook Pro 16',      price: 3499, in_stock: true,  memory_id: 'mem5', display_id: 'dsp4', tags: ['creative','professional','macos'],   specs: { cpu: { brand: 'Apple', cores: 12, ghz: 4.05}, battery_wh: 100, weight_kg: 2.15 } },
-      lp3: { brand: 'Asus',      model: 'ROG Zephyrus G14',    price: 1699, in_stock: true,  memory_id: 'mem3', display_id: 'dsp5', tags: ['gaming','amd','portable'],           specs: { cpu: { brand: 'AMD',   cores: 8,  ghz: 4.9 }, battery_wh: 76,  weight_kg: 1.65 } },
-      lp4: { brand: 'Dell',      model: 'XPS 15',              price: 1899, in_stock: false, memory_id: 'mem3', display_id: 'dsp4', tags: ['creative','windows','4k'],           specs: { cpu: { brand: 'Intel', cores: 14, ghz: 3.8 }, battery_wh: 86,  weight_kg: 1.86 } },
-      lp5: { brand: 'Razer',     model: 'Blade 15',            price: 2499, in_stock: true,  memory_id: 'mem4', display_id: 'dsp3', tags: ['gaming','windows','rgb'],            specs: { cpu: { brand: 'Intel', cores: 14, ghz: 4.1 }, battery_wh: 80,  weight_kg: 2.01 } },
-      lp6: { brand: 'Framework', model: 'Laptop 13',           price: 849,  in_stock: true,  memory_id: 'mem1', display_id: 'dsp1', tags: ['modular','linux','budget'],          specs: { cpu: { brand: 'Intel', cores: 10, ghz: 3.3 }, battery_wh: 55,  weight_kg: 1.3  } }
-    }
-  }},
-
-  // ── Basic reads ──
-  { group: 'Basic Reads', num: 4, label: 'Get single laptop (lp2)', action: 'get', body: { collection: 'laptops', keys: 'lp2' } },
-  { group: 'Basic Reads', num: 5, label: 'Get all laptops', action: 'get', body: { collection: 'laptops' } },
-  { group: 'Basic Reads', num: 6, label: 'Get batch of laptops', action: 'get', body: { collection: 'laptops', keys: ['lp1','lp3','lp5'] } },
-
-  // ── Field selection ──
-  { group: 'Field Selection', num: 7, label: 'Select brand, model, price only', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'] } },
-  { group: 'Field Selection', num: 8, label: 'Deep nested field (CPU specs)', action: 'get', body: { collection: 'laptops', fields: ['brand','model','specs.cpu.ghz','specs.cpu.cores'] } },
-  { group: 'Field Selection', num: 9, label: 'Exclude price and FK fields', action: 'get', body: { collection: 'laptops', excludedFields: ['price','memory_id','display_id'] } },
-  { group: 'Field Selection', num: 10, label: 'Validation: fields + excludedFields error', action: 'get', body: { collection: 'laptops', fields: ['brand'], excludedFields: ['price'] } },
-
-  // ── Where ──
-  { group: 'WHERE Clause', num: 11, label: 'Exact match — Apple only', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], where: { brand: 'Apple' } } },
-  { group: 'WHERE Clause', num: 12, label: 'Numeric range $gt/$lt', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], where: { price: { $gt: 1000, $lt: 2000 } } } },
-  { group: 'WHERE Clause', num: 13, label: 'Nested field — 12+ CPU cores', action: 'get', body: { collection: 'laptops', fields: ['brand','model','specs.cpu'], where: { 'specs.cpu.cores': { $gte: 12 } } } },
-  { group: 'WHERE Clause', num: 14, label: 'Multiple conditions — Intel under 2kg', action: 'get', body: { collection: 'laptops', fields: ['brand','model','specs.cpu.brand','specs.weight_kg'], where: { 'specs.cpu.brand': 'Intel', 'specs.weight_kg': { $lt: 2.0 } } } },
-  { group: 'WHERE Clause', num: 15, label: '$ne — not Intel', action: 'get', body: { collection: 'laptops', fields: ['brand','model','specs.cpu.brand'], where: { 'specs.cpu.brand': { $ne: 'Intel' } } } },
-  { group: 'WHERE Clause', num: 16, label: '$contains on string — model has "Pro"', action: 'get', body: { collection: 'laptops', fields: ['brand','model'], where: { model: { $contains: 'Pro' } } } },
-  { group: 'WHERE Clause', num: 17, label: '$contains on array — tagged "gaming"', action: 'get', body: { collection: 'laptops', fields: ['brand','model','tags','price'], where: { tags: { $contains: 'gaming' } } } },
-  { group: 'WHERE Clause', num: 18, label: '$in — Apple, Dell or Razer', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], where: { brand: { $in: ['Apple','Dell','Razer'] } } } },
-  { group: 'WHERE Clause', num: 19, label: '$nin — exclude Framework', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], where: { brand: { $nin: ['Framework'] } } } },
-  { group: 'WHERE Clause', num: 20, label: 'Combined — in-stock gaming under $2000', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price','tags'], where: { in_stock: true, tags: { $contains: 'gaming' }, price: { $lt: 2000 } } } },
-
-  // ── Sort ──
-  { group: 'Sort', num: 21, label: 'Sort by price asc', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], sort: [{ field: 'price', order: 'asc' }] } },
-  { group: 'Sort', num: 22, label: 'Sort by price desc', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], sort: [{ field: 'price', order: 'desc' }] } },
-  { group: 'Sort', num: 23, label: 'Sort by CPU cores desc', action: 'get', body: { collection: 'laptops', fields: ['brand','model','specs.cpu.cores','specs.cpu.ghz'], sort: [{ field: 'specs.cpu.cores', order: 'desc' }] } },
-  { group: 'Sort', num: 24, label: 'Multi-field sort — brand asc, price asc', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], sort: [{ field: 'brand', order: 'asc' }, { field: 'price', order: 'asc' }] } },
-  { group: 'Sort', num: 25, label: 'Sort + WHERE — in-stock by weight asc', action: 'get', body: { collection: 'laptops', fields: ['brand','model','specs.weight_kg','price'], where: { in_stock: true }, sort: [{ field: 'specs.weight_kg', order: 'asc' }] } },
-
-  // ── Pagination ──
-  { group: 'Pagination', num: 26, label: 'count — 3 cheapest', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], sort: [{ field: 'price', order: 'asc' }], count: 3 } },
-  { group: 'Pagination', num: 27, label: 'offset + count — page 2 (skip 2, take 2)', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], sort: [{ field: 'price', order: 'asc' }], offset: 2, count: 2 } },
-  { group: 'Pagination', num: 28, label: 'offset + count + WHERE — in-stock page 2', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], where: { in_stock: true }, sort: [{ field: 'price', order: 'asc' }], offset: 2, count: 2 } },
-
-  // ── Joins ──
-  { group: 'Joins', num: 29, label: 'Join laptops → memory', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], joins: [{ ram: { from: 'memory', on: 'memory_id' } }] } },
-  { group: 'Joins', num: 30, label: 'Join laptops → display (partial fields)', action: 'get', body: { collection: 'laptops', fields: ['brand','model'], joins: [{ screen: { from: 'display', on: 'display_id', fields: ['refresh_hz','panel','size_inch'] } }] } },
-  { group: 'Joins', num: 31, label: 'Double join — memory + display', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], joins: [{ ram: { from: 'memory', on: 'memory_id', fields: ['capacity_gb','type'] } }, { screen: { from: 'display', on: 'display_id', fields: ['size_inch','refresh_hz','panel'] } }] } },
-  { group: 'Joins', num: 32, label: 'Join + WHERE on main — in-stock with display', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], where: { in_stock: true }, joins: [{ screen: { from: 'display', on: 'display_id', fields: ['refresh_hz','panel','hdr'] } }] } },
-  { group: 'Joins', num: 33, label: 'Join + WHERE on joined — OLED or Mini-LED', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], joins: [{ screen: { from: 'display', on: 'display_id', fields: ['panel','refresh_hz','hdr'] } }], where: { 'screen.panel': { $in: ['OLED','Mini-LED'] } } } },
-  { group: 'Joins', num: 34, label: 'Join + WHERE — 120Hz+ display', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], joins: [{ screen: { from: 'display', on: 'display_id', fields: ['refresh_hz','panel'] } }], where: { 'screen.refresh_hz': { $gte: 120 } } } },
-  { group: 'Joins', num: 35, label: 'Join + WHERE — upgradeable RAM', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], joins: [{ ram: { from: 'memory', on: 'memory_id', fields: ['capacity_gb','type','upgradeable'] } }], where: { 'ram.upgradeable': true } } },
-  { group: 'Joins', num: 36, label: 'Join + sort by display refresh rate desc', action: 'get', body: { collection: 'laptops', fields: ['brand','model','price'], joins: [{ screen: { from: 'display', on: 'display_id', fields: ['refresh_hz','panel'] } }], sort: [{ field: 'screen.refresh_hz', order: 'desc' }] } },
-
-  // ── Update & Delete ──
-  { group: 'Update & Delete', num: 37, label: 'Update lp4 — back in stock, new price', action: 'update', body: { collection: 'laptops', data: { lp4: { in_stock: true, price: 1749 } } } },
-  { group: 'Update & Delete', num: 38, label: 'Update multiple laptops', action: 'update', body: { collection: 'laptops', data: { lp1: { price: 1399 }, lp6: { price: 799 } } } },
-  { group: 'Update & Delete', num: 39, label: 'Delete single laptop (lp6)', action: 'delete', body: { collection: 'laptops', keys: 'lp6' } },
-  { group: 'Update & Delete', num: 40, label: 'Delete multiple laptops', action: 'delete', body: { collection: 'laptops', keys: ['lp4','lp5'] } },
-  { group: 'Update & Delete', num: 41, label: 'Drop entire laptops collection', action: 'delete', body: { collection: 'laptops', drop: true } },
-
-  // ── Extends ──
-  { group: 'Extends', num: 50, label: 'Insert lp7 with embedded memory + display', action: 'set', body: { collection: 'laptops', data: { lp7: { brand: 'MSI', model: 'Titan GT77', price: 3299, in_stock: true, tags: ['gaming','desktop-replacement','windows'], specs: { cpu: { brand: 'Intel', cores: 16, ghz: 5.0 }, battery_wh: 99, weight_kg: 3.3 }, extends: { ram: 'memory.mem4', screen: 'display.dsp3' } } } } },
-  { group: 'Extends', num: 51, label: 'Read lp7 — ram and screen embedded', action: 'get', body: { collection: 'laptops', keys: 'lp7' } },
-  { group: 'Extends', num: 52, label: 'Extends with auto-generated key (array)', action: 'set', body: { collection: 'laptops', data: [{ brand: 'HP', model: 'Spectre x360', price: 1599, in_stock: true, extends: { ram: 'memory.mem2' } }] } },
-  { group: 'Extends', num: 53, label: 'Extends with missing reference (graceful)', action: 'set', body: { collection: 'laptops', data: { lp8: { brand: 'Lenovo', model: 'Legion 5', price: 1199, extend: { ram: 'memory.mem99' } } } } },
-
-  // ── Versioning ──
-  { group: 'Versioning', num: 45, label: 'Read lp2 — see _v, createdAt, modifiedAt', action: 'get', body: { collection: 'laptops', keys: 'lp2' } },
-  { group: 'Versioning', num: 46, label: 'Conflict test — stale _v:1 write skipped', action: 'set', body: { collection: 'laptops', data: { lp4: { brand: 'Dell', model: 'XPS 15 STALE', price: 999, _v: 1 } } } },
-
-  // ── Compact ──
-  { group: 'Maintenance', num: 99, label: 'Compact the database log', action: 'compact', body: {} },
-];
-
-// ── Render query list ────────────────────────────────────────────────────────
-const queryList = document.getElementById('queryList');
-const searchInput = document.getElementById('searchInput');
-
-function badgeClass(action) {
-    if (action === 'get') return 'badge-get';
-    if (action === 'set') return 'badge-set';
-    if (action === 'update') return 'badge-update';
-    if (action === 'delete' || action === 'compact') return 'badge-delete';
-    return 'badge-get';
-}
-
-function badgeLabel(action) {
-    if (action === 'get') return 'GET';
-    if (action === 'set') return 'SET';
-    if (action === 'update') return 'UPD';
-    if (action === 'delete') return 'DEL';
-    if (action === 'compact') return 'OPS';
-    return 'GET';
-}
-
-function renderList(filter = '') {
-    queryList.innerHTML = '';
-    const lower = filter.toLowerCase();
-    let lastGroup = null;
-
-    for (const q of QUERIES) {
-        if (filter && !q.label.toLowerCase().includes(lower) && !q.group.toLowerCase().includes(lower)) continue;
-
-        if (q.group !== lastGroup) {
-            const lbl = document.createElement('div');
-            lbl.className = 'query-group-label';
-            lbl.textContent = q.group;
-            queryList.appendChild(lbl);
-            lastGroup = q.group;
-        }
-
-        const item = document.createElement('div');
-        item.className = 'query-item';
-        item.dataset.idx = QUERIES.indexOf(q);
-        item.innerHTML = `
-            <span class="query-item-num">§${q.num}</span>
-            <span class="query-item-badge ${badgeClass(q.action)}">${badgeLabel(q.action)}</span>
-            <span class="query-item-text">${q.label}</span>
-        `;
-        item.addEventListener('click', () => loadQuery(q, item));
-        queryList.appendChild(item);
-    }
-}
-
-function loadQuery(q, itemEl) {
-    document.querySelectorAll('.query-item').forEach(i => i.classList.remove('active'));
-    itemEl.classList.add('active');
-    document.getElementById('actionSelect').value = q.action;
-    document.getElementById('editor').value = JSON.stringify(q.body, null, 2);
-    document.getElementById('result').innerHTML = '<div class="result-placeholder">Press ▶ Run to execute this query.</div>';
-    document.getElementById('resultMeta').textContent = '';
-}
-
-searchInput.addEventListener('input', () => renderList(searchInput.value));
-renderList();
-
-// ── Run query ────────────────────────────────────────────────────────────────
-const editor = document.getElementById('editor');
-const resultEl = document.getElementById('result');
-const resultMeta = document.getElementById('resultMeta');
-const actionSelect = document.getElementById('actionSelect');
-
-runBtn.addEventListener('click', runQuery);
-editor.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runQuery();
-    // Tab inserts spaces
-    if (e.key === 'Tab') {
-        e.preventDefault();
-        const s = editor.selectionStart, end = editor.selectionEnd;
-        editor.value = editor.value.substring(0, s) + '  ' + editor.value.substring(end);
-        editor.selectionStart = editor.selectionEnd = s + 2;
-    }
-});
-
-async function runQuery() {
-    if (!db) { addLog('DB not ready yet', 'warn'); return; }
-    const action = actionSelect.value;
-    const raw = editor.value.trim();
-
-    let payload = {};
-    if (action !== 'compact') {
-        try {
-            payload = JSON.parse(raw);
-        } catch (e) {
-            addLog('Invalid JSON: ' + e.message, 'error');
-            showResult({ error: 'Invalid JSON: ' + e.message }, null, true);
-            return;
-        }
-    }
-
-    const col = payload.collection || '';
-    addLog(`→ ${action.toUpperCase()}${col ? ' [' + col + ']' : ''}`, 'info');
-    console.log('[MoltenDB] Sending:', action, payload);
-
-    const t0 = performance.now();
-    try {
-        let result;
-        if (action === 'compact') {
-            result = await db.sendMessage('compact');
-        } else {
-            result = await db.sendMessage(action, payload);
-        }
-        const ms = (performance.now() - t0).toFixed(1);
-        console.log('[MoltenDB] Result:', result);
-        const summary = summariseResult(result);
-        addLog(`✅ ${action.toUpperCase()} completed in ${ms} ms${summary ? ' — ' + summary : ''}`, 'success');
-        showResult(result, ms, false);
-        // Emit live change events for mutations
-        await emitChangeEvents(action, payload, mapToObject(result));
-    } catch (e) {
-        const ms = (performance.now() - t0).toFixed(1);
-        console.error('[MoltenDB] Error:', e);
-        addLog(`❌ ${action.toUpperCase()} failed in ${ms} ms: ${e.message}`, 'error');
-        showResult({ error: e.message }, ms, true);
-    }
-}
-
-function mapToObject(data) {
-    if (data instanceof Map) {
-        const obj = {};
-        for (const [k, v] of data) obj[k] = mapToObject(v);
-        return obj;
-    }
-    if (Array.isArray(data)) return data.map(mapToObject);
-    if (data && typeof data === 'object') {
-        const obj = {};
-        for (const k in data) obj[k] = mapToObject(data[k]);
-        return obj;
-    }
-    return data;
-}
-
-function summariseResult(data) {
-    data = mapToObject(data);
-    if (data === null || data === undefined) return 'null';
-    if (Array.isArray(data)) return `${data.length} row(s)`;
-    if (typeof data === 'object') {
-        if (data.error) return 'error: ' + data.error;
-        if (data.status) return data.status;
-        const keys = Object.keys(data);
-        return keys.length + ' field(s)';
-    }
-    return String(data);
-}
-
-function showResult(data, ms, isError) {
-    data = mapToObject(data);
-    if (ms !== null) {
-        resultMeta.textContent = `${ms} ms`;
-    }
-    if (isError) {
-        resultEl.innerHTML = `<span class="result-error">${escapeHtml(JSON.stringify(data, null, 2))}</span>`;
-        return;
-    }
-    resultEl.innerHTML = syntaxHighlight(JSON.stringify(data, null, 2));
-}
-
-function escapeHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function syntaxHighlight(json) {
-    json = escapeHtml(json);
-    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
-        if (/^"/.test(match)) {
-            if (/:$/.test(match)) return `<span class="json-key">${match}</span>`;
-            return `<span class="json-str">${match}</span>`;
-        }
-        if (/true|false/.test(match)) return `<span class="json-bool">${match}</span>`;
-        if (/null/.test(match)) return `<span class="json-null">${match}</span>`;
-        return `<span class="json-num">${match}</span>`;
-    });
-}
-
-// ── Live Events panel ───────────────────────────────────────────────────────
-const eventEntries = document.getElementById('eventEntries');
-document.getElementById('eventsClearBtn').addEventListener('click', () => {
-    eventEntries.innerHTML = '<div class="event-placeholder">Cleared. Run a mutation to see events.</div>';
-});
-
-async function emitChangeEvents(action, payload, result) {
-    if (!['set', 'update', 'delete'].includes(action)) return;
-    const collection = payload.collection || '?';
-    const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
-
-    // Clear placeholder on first event
-    if (eventEntries.querySelector('.event-placeholder')) eventEntries.innerHTML = '';
-
-    if (action === 'delete') {
-        if (payload.drop) {
-            addEventEntry(ts, 'drop', collection, '*', null);
-        } else {
-            const keys = Array.isArray(payload.keys) ? payload.keys : [payload.keys];
-            keys.forEach(k => addEventEntry(ts, 'delete', collection, k, null));
-        }
-    } else if (action === 'set' || action === 'update') {
-        // Collect the keys that were written
-        const data = payload.data;
-        let writtenKeys = [];
-        if (Array.isArray(data)) {
-            // Array format — keys are auto-generated UUIDs; fetch all and diff is complex,
-            // so just emit generic entries with index placeholders
-            data.forEach((_, i) => addEventEntry(ts, 'change', collection, `[${i}]`, null));
-            return;
-        } else if (data && typeof data === 'object') {
-            writtenKeys = Object.keys(data);
-        }
-        if (writtenKeys.length === 0) return;
-
-        // Fetch the current _v for each written key via a targeted get
-        try {
-            const getPayload = { collection, keys: writtenKeys.length === 1 ? writtenKeys[0] : writtenKeys };
-            const fetched = mapToObject(await db.sendMessage('get', getPayload));
-            // fetched is either a single doc object or an array of docs with _key
-            const versionMap = {};
-            if (Array.isArray(fetched)) {
-                fetched.forEach(doc => { if (doc._key) versionMap[doc._key] = doc._v ?? null; });
-            } else if (fetched && typeof fetched === 'object' && !fetched.error) {
-                // single-key response — key is writtenKeys[0]
-                versionMap[writtenKeys[0]] = fetched._v ?? null;
-            }
-            writtenKeys.forEach(k => addEventEntry(ts, 'change', collection, k, versionMap[k] ?? null));
-        } catch (_) {
-            // If the follow-up get fails, still emit events without version
-            writtenKeys.forEach(k => addEventEntry(ts, 'change', collection, k, null));
-        }
-    }
-}
-
-function addEventEntry(ts, type, collection, key, newV) {
+  function addEventEntry(ts, type, collection, key, newV) {
     const entry = document.createElement('div');
     entry.className = 'event-entry';
     const badgeClass = type === 'change' ? 'event-change' : type === 'delete' ? 'event-delete' : 'event-drop';
@@ -902,61 +213,308 @@ function addEventEntry(ts, type, collection, key, newV) {
     `;
     eventEntries.appendChild(entry);
     eventEntries.scrollTop = eventEntries.scrollHeight;
-}
+  }
 
-// ── Seed all data at once ────────────────────────────────────────────────────
-seedBtn.addEventListener('click', async () => {
+  async function initDB() {
+    try {
+      addLog('Initializing MoltenDB WASM worker…', 'info');
+      const workerUrl = new URL('@moltendb-web/core/worker', import.meta.url).href;
+      db = new MoltenDB('moltendb_demo', {syncEnabled: false, workerUrl});
+      await db.init();
+
+      // ⚡ THE MAGIC: Listen to native events straight from the Web Worker
+      db.worker.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'event') {
+          const evt = e.data;
+          const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+
+          let type = 'change';
+          if (evt.new_v === null || evt.new_v === undefined) {
+            type = evt.key === '*' ? 'drop' : 'delete';
+          }
+
+          const placeholder = eventEntries.querySelector('.event-placeholder');
+          if (placeholder) placeholder.remove();
+
+          addEventEntry(ts, type, evt.collection, evt.key, evt.new_v);
+        }
+      });
+
+      addLog('✅ MoltenDB ready — OPFS storage active', 'success');
+      status.textContent = '✅ Ready';
+      status.className = 'ready';
+      runBtn.disabled = false;
+      seedBtn.disabled = false;
+      clearBtn.disabled = false;
+    } catch (e) {
+      addLog('❌ Init failed: ' + e.message, 'error');
+      console.error('[MoltenDB] Init error:', e);
+      status.textContent = '❌ Init failed: ' + e.message;
+      status.className = 'error';
+    }
+  }
+
+  // ── Query definitions ────────────────────────────────────────────────────────
+  const QUERIES = [
+    { group: 'Seed Data', num: 1, label: 'Seed memory collection', action: 'set', body: { collection: 'memory', data: { mem1: {capacity_gb: 8, type: 'LPDDR5', speed_mhz: 4266, upgradeable: false}, mem2: {capacity_gb: 16, type: 'LPDDR5', speed_mhz: 4266, upgradeable: false}, mem3: {capacity_gb: 32, type: 'DDR5', speed_mhz: 5600, upgradeable: true}, mem4: {capacity_gb: 64, type: 'DDR5', speed_mhz: 5600, upgradeable: true}, mem5: {capacity_gb: 36, type: 'Unified', speed_mhz: 6400, upgradeable: false} } } },
+    { group: 'Seed Data', num: 2, label: 'Seed display collection', action: 'set', body: { collection: 'display', data: { dsp1: { size_inch: 13.3, resolution: '2560x1600', panel: 'IPS', refresh_hz: 60, touchscreen: false, hdr: false }, dsp2: { size_inch: 14.0, resolution: '2880x1800', panel: 'OLED', refresh_hz: 90, touchscreen: false, hdr: true }, dsp3: { size_inch: 15.6, resolution: '1920x1080', panel: 'IPS', refresh_hz: 144, touchscreen: false, hdr: false }, dsp4: { size_inch: 16.2, resolution: '3456x2234', panel: 'Mini-LED', refresh_hz: 120, touchscreen: false, hdr: true }, dsp5: { size_inch: 14.0, resolution: '2560x1600', panel: 'IPS', refresh_hz: 165, touchscreen: true, hdr: false } } } },
+    { group: 'Seed Data', num: 3, label: 'Seed laptops collection', action: 'set', body: { collection: 'laptops', data: { lp1: { brand: 'Lenovo', model: 'ThinkPad X1 Carbon', price: 1499, in_stock: true, memory_id: 'mem2', display_id: 'dsp2', tags: ['business', 'ultrabook', 'lightweight'], specs: {cpu: {brand: 'Intel', cores: 12, ghz: 3.5}, battery_wh: 57, weight_kg: 1.12} }, lp2: { brand: 'Apple', model: 'MacBook Pro 16', price: 3499, in_stock: true, memory_id: 'mem5', display_id: 'dsp4', tags: ['creative', 'professional', 'macos'], specs: {cpu: {brand: 'Apple', cores: 12, ghz: 4.05}, battery_wh: 100, weight_kg: 2.15} }, lp3: { brand: 'Asus', model: 'ROG Zephyrus G14', price: 1699, in_stock: true, memory_id: 'mem3', display_id: 'dsp5', tags: ['gaming', 'amd', 'portable'], specs: {cpu: {brand: 'AMD', cores: 8, ghz: 4.9}, battery_wh: 76, weight_kg: 1.65} }, lp4: { brand: 'Dell', model: 'XPS 15', price: 1899, in_stock: false, memory_id: 'mem3', display_id: 'dsp4', tags: ['creative', 'windows', '4k'], specs: {cpu: {brand: 'Intel', cores: 14, ghz: 3.8}, battery_wh: 86, weight_kg: 1.86} }, lp5: { brand: 'Razer', model: 'Blade 15', price: 2499, in_stock: true, memory_id: 'mem4', display_id: 'dsp3', tags: ['gaming', 'windows', 'rgb'], specs: {cpu: {brand: 'Intel', cores: 14, ghz: 4.1}, battery_wh: 80, weight_kg: 2.01} }, lp6: { brand: 'Framework', model: 'Laptop 13', price: 849, in_stock: true, memory_id: 'mem1', display_id: 'dsp1', tags: ['modular', 'linux', 'budget'], specs: {cpu: {brand: 'Intel', cores: 10, ghz: 3.3}, battery_wh: 55, weight_kg: 1.3} } } } },
+    { group: 'Basic Reads', num: 4, label: 'Get single laptop (lp2)', action: 'get', body: {collection: 'laptops', keys: 'lp2'} },
+    { group: 'Basic Reads', num: 5, label: 'Get all laptops', action: 'get', body: {collection: 'laptops'} },
+    { group: 'Basic Reads', num: 6, label: 'Get batch of laptops', action: 'get', body: {collection: 'laptops', keys: ['lp1', 'lp3', 'lp5']} },
+    { group: 'Field Selection', num: 7, label: 'Select brand, model, price only', action: 'get', body: {collection: 'laptops', fields: ['brand', 'model', 'price']} },
+    { group: 'Field Selection', num: 8, label: 'Deep nested field (CPU specs)', action: 'get', body: {collection: 'laptops', fields: ['brand', 'model', 'specs.cpu.ghz', 'specs.cpu.cores']} },
+    { group: 'Field Selection', num: 9, label: 'Exclude price and FK fields', action: 'get', body: {collection: 'laptops', excludedFields: ['price', 'memory_id', 'display_id']} },
+    { group: 'Field Selection', num: 10, label: 'Validation: fields + excludedFields error', action: 'get', body: {collection: 'laptops', fields: ['brand'], excludedFields: ['price']} },
+    { group: 'WHERE Clause', num: 11, label: 'Exact match — Apple only', action: 'get', body: {collection: 'laptops', fields: ['brand', 'model', 'price'], where: {brand: 'Apple'}} },
+    { group: 'WHERE Clause', num: 12, label: 'Numeric range $gt/$lt', action: 'get', body: {collection: 'laptops', fields: ['brand', 'model', 'price'], where: {price: {$gt: 1000, $lt: 2000}}} },
+    { group: 'WHERE Clause', num: 13, label: 'Nested field — 12+ CPU cores', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'specs.cpu'], where: {'specs.cpu.cores': {$gte: 12}} } },
+    { group: 'WHERE Clause', num: 14, label: 'Multiple conditions — Intel under 2kg', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'specs.cpu.brand', 'specs.weight_kg'], where: {'specs.cpu.brand': 'Intel', 'specs.weight_kg': {$lt: 2.0}} } },
+    { group: 'WHERE Clause', num: 15, label: '$ne — not Intel', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'specs.cpu.brand'], where: {'specs.cpu.brand': {$ne: 'Intel'}} } },
+    { group: 'WHERE Clause', num: 16, label: '$contains on string — model has "Pro"', action: 'get', body: {collection: 'laptops', fields: ['brand', 'model'], where: {model: {$contains: 'Pro'}}} },
+    { group: 'WHERE Clause', num: 17, label: '$contains on array — tagged "gaming"', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'tags', 'price'], where: {tags: {$contains: 'gaming'}} } },
+    { group: 'WHERE Clause', num: 18, label: '$in — Apple, Dell or Razer', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'price'], where: {brand: {$in: ['Apple', 'Dell', 'Razer']}} } },
+    { group: 'WHERE Clause', num: 19, label: '$nin — exclude Framework', action: 'get', body: {collection: 'laptops', fields: ['brand', 'model', 'price'], where: {brand: {$nin: ['Framework']}}} },
+    { group: 'WHERE Clause', num: 20, label: 'Combined — in-stock gaming under $2000', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'price', 'tags'], where: {in_stock: true, tags: {$contains: 'gaming'}, price: {$lt: 2000}} } },
+    { group: 'Sort', num: 21, label: 'Sort by price asc', action: 'get', body: {collection: 'laptops', fields: ['brand', 'model', 'price'], sort: [{field: 'price', order: 'asc'}]} },
+    { group: 'Sort', num: 22, label: 'Sort by price desc', action: 'get', body: {collection: 'laptops', fields: ['brand', 'model', 'price'], sort: [{field: 'price', order: 'desc'}]} },
+    { group: 'Sort', num: 23, label: 'Sort by CPU cores desc', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'specs.cpu.cores', 'specs.cpu.ghz'], sort: [{field: 'specs.cpu.cores', order: 'desc'}] } },
+    { group: 'Sort', num: 24, label: 'Multi-field sort — brand asc, price asc', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'price'], sort: [{field: 'brand', order: 'asc'}, {field: 'price', order: 'asc'}] } },
+    { group: 'Sort', num: 25, label: 'Sort + WHERE — in-stock by weight asc', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'specs.weight_kg', 'price'], where: {in_stock: true}, sort: [{field: 'specs.weight_kg', order: 'asc'}] } },
+    { group: 'Pagination', num: 26, label: 'count — 3 cheapest', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'price'], sort: [{field: 'price', order: 'asc'}], count: 3 } },
+    { group: 'Pagination', num: 27, label: 'offset + count — page 2 (skip 2, take 2)', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'price'], sort: [{field: 'price', order: 'asc'}], offset: 2, count: 2 } },
+    { group: 'Pagination', num: 28, label: 'offset + count + WHERE — in-stock page 2', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'price'], where: {in_stock: true}, sort: [{field: 'price', order: 'asc'}], offset: 2, count: 2 } },
+    { group: 'Joins', num: 29, label: 'Join laptops → memory', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'price'], joins: [{ram: {from: 'memory', on: 'memory_id'}}] } },
+    { group: 'Joins', num: 30, label: 'Join laptops → display (partial fields)', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model'], joins: [{screen: {from: 'display', on: 'display_id', fields: ['refresh_hz', 'panel', 'size_inch']}}] } },
+    { group: 'Joins', num: 31, label: 'Double join — memory + display', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'price'], joins: [{ ram: { from: 'memory', on: 'memory_id', fields: ['capacity_gb', 'type'] } }, {screen: {from: 'display', on: 'display_id', fields: ['size_inch', 'refresh_hz', 'panel']}}] } },
+    { group: 'Joins', num: 32, label: 'Join + WHERE on main — in-stock with display', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'price'], where: {in_stock: true}, joins: [{screen: {from: 'display', on: 'display_id', fields: ['refresh_hz', 'panel', 'hdr']}}] } },
+    { group: 'Joins', num: 33, label: 'Join + WHERE on joined — OLED or Mini-LED', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'price'], joins: [{screen: {from: 'display', on: 'display_id', fields: ['panel', 'refresh_hz', 'hdr']}}], where: {'screen.panel': {$in: ['OLED', 'Mini-LED']}} } },
+    { group: 'Joins', num: 34, label: 'Join + WHERE — 120Hz+ display', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'price'], joins: [{screen: {from: 'display', on: 'display_id', fields: ['refresh_hz', 'panel']}}], where: {'screen.refresh_hz': {$gte: 120}} } },
+    { group: 'Joins', num: 35, label: 'Join + WHERE — upgradeable RAM', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'price'], joins: [{ram: {from: 'memory', on: 'memory_id', fields: ['capacity_gb', 'type', 'upgradeable']}}], where: {'ram.upgradeable': true} } },
+    { group: 'Joins', num: 36, label: 'Join + sort by display refresh rate desc', action: 'get', body: { collection: 'laptops', fields: ['brand', 'model', 'price'], joins: [{screen: {from: 'display', on: 'display_id', fields: ['refresh_hz', 'panel']}}], sort: [{field: 'screen.refresh_hz', order: 'desc'}] } },
+    { group: 'Update & Delete', num: 37, label: 'Update lp4 — back in stock, new price', action: 'update', body: {collection: 'laptops', data: {lp4: {in_stock: true, price: 1749}}} },
+    { group: 'Update & Delete', num: 38, label: 'Update multiple laptops', action: 'update', body: {collection: 'laptops', data: {lp1: {price: 1399}, lp6: {price: 799}}} },
+    { group: 'Update & Delete', num: 39, label: 'Delete single laptop (lp6)', action: 'delete', body: {collection: 'laptops', keys: 'lp6'} },
+    { group: 'Update & Delete', num: 40, label: 'Delete multiple laptops', action: 'delete', body: {collection: 'laptops', keys: ['lp4', 'lp5']} },
+    { group: 'Update & Delete', num: 41, label: 'Drop entire laptops collection', action: 'delete', body: {collection: 'laptops', drop: true} },
+    { group: 'Extends', num: 50, label: 'Insert lp7 with embedded memory + display', action: 'set', body: { collection: 'laptops', data: { lp7: { brand: 'MSI', model: 'Titan GT77', price: 3299, in_stock: true, tags: ['gaming', 'desktop-replacement', 'windows'], specs: {cpu: {brand: 'Intel', cores: 16, ghz: 5.0}, battery_wh: 99, weight_kg: 3.3}, extends: {ram: 'memory.mem4', screen: 'display.dsp3'} } } } },
+    { group: 'Extends', num: 51, label: 'Read lp7 — ram and screen embedded', action: 'get', body: {collection: 'laptops', keys: 'lp7'} },
+    { group: 'Extends', num: 52, label: 'Extends with auto-generated key (array)', action: 'set', body: { collection: 'laptops', data: [{brand: 'HP', model: 'Spectre x360', price: 1599, in_stock: true, extends: {ram: 'memory.mem2'}}] } },
+    { group: 'Extends', num: 53, label: 'Extends with missing reference (graceful)', action: 'set', body: { collection: 'laptops', data: {lp8: {brand: 'Lenovo', model: 'Legion 5', price: 1199, extend: {ram: 'memory.mem99'}}} } },
+    { group: 'Versioning', num: 45, label: 'Read lp2 — see _v, createdAt, modifiedAt', action: 'get', body: {collection: 'laptops', keys: 'lp2'} },
+    { group: 'Versioning', num: 46, label: 'Conflict test — stale _v:1 write skipped', action: 'set', body: {collection: 'laptops', data: {lp4: {brand: 'Dell', model: 'XPS 15 STALE', price: 999, _v: 1}}} },
+    { group: 'Maintenance', num: 99, label: 'Compact the database log', action: 'compact', body: {} },
+  ];
+
+  // ── Render query list ────────────────────────────────────────────────────────
+  const queryList = document.getElementById('queryList');
+  const searchInput = document.getElementById('searchInput');
+
+  function badgeClass(action) {
+    if (action === 'get') return 'badge-get';
+    if (action === 'set') return 'badge-set';
+    if (action === 'update') return 'badge-update';
+    if (action === 'delete' || action === 'compact') return 'badge-delete';
+    return 'badge-get';
+  }
+
+  function badgeLabel(action) {
+    if (action === 'get') return 'GET';
+    if (action === 'set') return 'SET';
+    if (action === 'update') return 'UPD';
+    if (action === 'delete') return 'DEL';
+    if (action === 'compact') return 'OPS';
+    return 'GET';
+  }
+
+  function renderList(filter = '') {
+    queryList.innerHTML = '';
+    const lower = filter.toLowerCase();
+    let lastGroup = null;
+
+    for (const q of QUERIES) {
+      if (filter && !q.label.toLowerCase().includes(lower) && !q.group.toLowerCase().includes(lower)) continue;
+
+      if (q.group !== lastGroup) {
+        const lbl = document.createElement('div');
+        lbl.className = 'query-group-label';
+        lbl.textContent = q.group;
+        queryList.appendChild(lbl);
+        lastGroup = q.group;
+      }
+
+      const item = document.createElement('div');
+      item.className = 'query-item';
+      item.dataset.idx = QUERIES.indexOf(q);
+      item.innerHTML = `
+            <span class="query-item-num">§${q.num}</span>
+            <span class="query-item-badge ${badgeClass(q.action)}">${badgeLabel(q.action)}</span>
+            <span class="query-item-text">${q.label}</span>
+        `;
+      item.addEventListener('click', () => loadQuery(q, item));
+      queryList.appendChild(item);
+    }
+  }
+
+  function loadQuery(q, itemEl) {
+    document.querySelectorAll('.query-item').forEach(i => i.classList.remove('active'));
+    itemEl.classList.add('active');
+    document.getElementById('actionSelect').value = q.action;
+    document.getElementById('editor').value = JSON.stringify(q.body, null, 2);
+    document.getElementById('result').innerHTML = '<div class="result-placeholder">Press ▶ Run to execute this query.</div>';
+    document.getElementById('resultMeta').textContent = '';
+  }
+
+  searchInput.addEventListener('input', () => renderList(searchInput.value));
+  renderList();
+
+  // ── Run query ────────────────────────────────────────────────────────────────
+  const editor = document.getElementById('editor');
+  const resultEl = document.getElementById('result');
+  const resultMeta = document.getElementById('resultMeta');
+  const actionSelect = document.getElementById('actionSelect');
+
+  runBtn.addEventListener('click', runQuery);
+  editor.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runQuery();
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const s = editor.selectionStart, end = editor.selectionEnd;
+      editor.value = editor.value.substring(0, s) + '  ' + editor.value.substring(end);
+      editor.selectionStart = editor.selectionEnd = s + 2;
+    }
+  });
+
+  async function runQuery() {
+    if (!db) { addLog('DB not ready yet', 'warn'); return; }
+    const action = actionSelect.value;
+    const raw = editor.value.trim();
+
+    let payload = {};
+    if (action !== 'compact') {
+      try {
+        payload = JSON.parse(raw);
+      } catch (e) {
+        addLog('Invalid JSON: ' + e.message, 'error');
+        showResult({error: 'Invalid JSON: ' + e.message}, null, true);
+        return;
+      }
+    }
+
+    const col = payload.collection || '';
+    addLog(`→ ${action.toUpperCase()}${col ? ' [' + col + ']' : ''}`, 'info');
+
+    const t0 = performance.now();
+    try {
+      let result = action === 'compact' ? await db.sendMessage('compact') : await db.sendMessage(action, payload);
+      const ms = (performance.now() - t0).toFixed(1);
+      const summary = summariseResult(result);
+      addLog(`✅ ${action.toUpperCase()} completed in ${ms} ms${summary ? ' — ' + summary : ''}`, 'success');
+      showResult(result, ms, false);
+      // NOTE: We no longer manually call an emit event function here!
+    } catch (e) {
+      const ms = (performance.now() - t0).toFixed(1);
+      addLog(`❌ ${action.toUpperCase()} failed in ${ms} ms: ${e.message}`, 'error');
+      showResult({error: e.message}, ms, true);
+    }
+  }
+
+  function mapToObject(data) {
+    if (data instanceof Map) {
+      const obj = {};
+      for (const [k, v] of data) obj[k] = mapToObject(v);
+      return obj;
+    }
+    if (Array.isArray(data)) return data.map(mapToObject);
+    if (data && typeof data === 'object') {
+      const obj = {};
+      for (const k in data) obj[k] = mapToObject(data[k]);
+      return obj;
+    }
+    return data;
+  }
+
+  function summariseResult(data) {
+    data = mapToObject(data);
+    if (data === null || data === undefined) return 'null';
+    if (Array.isArray(data)) return `${data.length} row(s)`;
+    if (typeof data === 'object') {
+      if (data.error) return 'error: ' + data.error;
+      if (data.status) return data.status;
+      return Object.keys(data).length + ' field(s)';
+    }
+    return String(data);
+  }
+
+  function showResult(data, ms, isError) {
+    data = mapToObject(data);
+    if (ms !== null) resultMeta.textContent = `${ms} ms`;
+    if (isError) {
+      resultEl.innerHTML = `<span class="result-error">${escapeHtml(JSON.stringify(data, null, 2))}</span>`;
+      return;
+    }
+    resultEl.innerHTML = syntaxHighlight(JSON.stringify(data, null, 2));
+  }
+
+  function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  function syntaxHighlight(json) {
+    json = escapeHtml(json);
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+      if (/^"/.test(match)) {
+        if (/:$/.test(match)) return `<span class="json-key">${match}</span>`;
+        return `<span class="json-str">${match}</span>`;
+      }
+      if (/true|false/.test(match)) return `<span class="json-bool">${match}</span>`;
+      if (/null/.test(match)) return `<span class="json-null">${match}</span>`;
+      return `<span class="json-num">${match}</span>`;
+    });
+  }
+
+  // ── Seed all data at once ────────────────────────────────────────────────────
+  seedBtn.addEventListener('click', async () => {
     seedBtn.disabled = true;
     seedBtn.textContent = '⏳ Seeding…';
     const seedQueries = QUERIES.filter(q => q.group === 'Seed Data');
     addLog('⚡ Seeding demo data (memory, display, laptops)…', 'info');
     try {
-        for (const q of seedQueries) {
-            addLog(`  → Seeding [${q.body.collection}]…`, 'info');
-            const r = await db.sendMessage(q.action, q.body);
-            console.log('[MoltenDB] Seed result for', q.body.collection, r);
-            addLog(`  ✅ [${q.body.collection}] seeded`, 'success');
-            await emitChangeEvents(q.action, q.body, mapToObject(r));
-        }
-        addLog('✅ All demo data seeded successfully!', 'success');
-        seedBtn.textContent = '✅ Seeded!';
-        setTimeout(() => { seedBtn.textContent = '⚡ Seed Demo Data'; seedBtn.disabled = false; }, 2000);
+      for (const q of seedQueries) {
+        addLog(`  → Seeding [${q.body.collection}]…`, 'info');
+        await db.sendMessage(q.action, q.body);
+        addLog(`  ✅ [${q.body.collection}] seeded`, 'success');
+        // NOTE: We no longer manually call an emit event function here!
+      }
+      addLog('✅ All demo data seeded successfully!', 'success');
+      seedBtn.textContent = '✅ Seeded!';
+      setTimeout(() => { seedBtn.textContent = '⚡ Seed Demo Data'; seedBtn.disabled = false; }, 2000);
     } catch (e) {
-        addLog('❌ Seed failed: ' + e.message, 'error');
-        console.error('[MoltenDB] Seed error:', e);
-        seedBtn.textContent = '❌ Failed';
-        seedBtn.disabled = false;
+      addLog('❌ Seed failed: ' + e.message, 'error');
+      seedBtn.textContent = '❌ Failed';
+      seedBtn.disabled = false;
     }
-});
+  });
 
-// ── Clear OPFS data ─────────────────────────────────────────────────────────
-clearBtn.addEventListener('click', async () => {
+  // ── Clear OPFS data ─────────────────────────────────────────────────────────
+  clearBtn.addEventListener('click', async () => {
     if (!confirm('This will delete all OPFS data and reload the page. Continue?')) return;
     clearBtn.disabled = true;
     clearBtn.textContent = '⏳ Clearing…';
     addLog('🗑 Clearing OPFS data…', 'warn');
     try {
-        // Terminate the worker first — the OPFS sync handle must be closed
-        // before the file can be deleted. If the handle stays open, removeEntry
-        // will throw a DOMException and the file won't be removed.
-        if (db) {
-            db.terminate();
-            db = null;
-        }
-        const root = await navigator.storage.getDirectory();
-        const dbFileName = 'moltendb_demo';
-        await root.removeEntry(dbFileName, { recursive: true });
-        addLog('✅ OPFS data cleared — reloading…', 'success');
-        setTimeout(() => location.reload(), 800);
+      if (db) { db.terminate(); db = null; }
+      const root = await navigator.storage.getDirectory();
+      await root.removeEntry('moltendb_demo', {recursive: true});
+      addLog('✅ OPFS data cleared — reloading…', 'success');
+      setTimeout(() => location.reload(), 800);
     } catch (e) {
-        addLog('❌ Clear failed: ' + e.message, 'error');
-        clearBtn.textContent = '🗑 Clear OPFS Data';
-        clearBtn.disabled = false;
+      addLog('❌ Clear failed: ' + e.message, 'error');
+      clearBtn.textContent = '🗑 Clear OPFS Data';
+      clearBtn.disabled = false;
     }
-});
+  });
 
-// ── Boot ─────────────────────────────────────────────────────────────────────
-initDB();
+  // ── Boot ─────────────────────────────────────────────────────────────────────
+  initDB();
 </script>
 </body>
 </html>

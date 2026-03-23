@@ -218,27 +218,23 @@
   async function initDB() {
     try {
       addLog('Initializing MoltenDB WASM worker…', 'info');
-      const workerUrl = new URL('@moltendb-web/core/worker', import.meta.url).href;
-      db = new MoltenDB('moltendb_demo', {syncEnabled: false, workerUrl});
+      db = new MoltenDB('moltendb_demo', {syncEnabled: false});
+
+      db.onEvent = (evt) => {
+        const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+        let type = 'change';
+
+        if (evt.new_v === null || evt.new_v === undefined) {
+          type = evt.key === '*' ? 'drop' : 'delete';
+        }
+
+        const placeholder = eventEntries.querySelector('.event-placeholder');
+        if (placeholder) placeholder.remove();
+
+        addEventEntry(ts, type, evt.collection, evt.key, evt.new_v);
+      };
       await db.init();
 
-      // ⚡ THE MAGIC: Listen to native events straight from the Web Worker
-      db.worker.addEventListener('message', (e) => {
-        if (e.data && e.data.type === 'event') {
-          const evt = e.data;
-          const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
-
-          let type = 'change';
-          if (evt.new_v === null || evt.new_v === undefined) {
-            type = evt.key === '*' ? 'drop' : 'delete';
-          }
-
-          const placeholder = eventEntries.querySelector('.event-placeholder');
-          if (placeholder) placeholder.remove();
-
-          addEventEntry(ts, type, evt.collection, evt.key, evt.new_v);
-        }
-      });
 
       addLog('✅ MoltenDB ready — OPFS storage active', 'success');
       status.textContent = '✅ Ready';

@@ -256,7 +256,6 @@
 </header>
 
 <div class="main">
-  <!-- Left: query list -->
   <div class="query-list-panel">
     <div class="panel-title">Example Queries</div>
     <div class="query-search">
@@ -265,7 +264,6 @@
     <div class="query-list" id="queryList"></div>
   </div>
 
-  <!-- Middle: editor -->
   <div class="editor-panel">
     <div class="editor-toolbar">
       <div class="panel-title">Query Builder Editor</div>
@@ -274,7 +272,6 @@
     <textarea id="editor" spellcheck="false" placeholder="Paste or type a query builder expression here, then click Run…"></textarea>
   </div>
 
-  <!-- Right: result + log -->
   <div class="result-panel">
     <div class="result-toolbar">
       <div class="panel-title">Result</div>
@@ -290,7 +287,6 @@
     </div>
   </div>
 
-  <!-- Live Events: WebSocket-style change feed -->
   <div class="events-panel">
     <div class="events-toolbar">
       <div class="ws-dot"></div>
@@ -303,7 +299,7 @@
 
 <script type="module">
   import { MoltenDB } from '@moltendb-web/core';
-  import { MoltenDBClient, WorkerTransport } from '@moltendb-web/query';
+  import { MoltenDBClient } from '@moltendb-web/query';
 
   // ── DB init ──────────────────────────────────────────────────────────────────
   let db = null;
@@ -316,7 +312,6 @@
   const eventEntries = document.getElementById('eventEntries');
 
   document.getElementById('logClearBtn').addEventListener('click', () => { logEntries.innerHTML = ''; });
-
   document.getElementById('eventsClearBtn').addEventListener('click', () => {
     eventEntries.innerHTML = '<div class="event-placeholder">Cleared. Run a mutation to see events.</div>';
   });
@@ -347,33 +342,31 @@
 
   async function initDB() {
     try {
-      addLog('Initializing MoltenDB WASM worker…', 'info');
-      const workerUrl = new URL('@moltendb-web/core/worker', import.meta.url).href;
-      db = new MoltenDB('moltendb_demo', { syncEnabled: false, workerUrl });
-      await db.init();
+      addLog('Initializing MoltenDB…', 'info');
 
-      const transport = new WorkerTransport(db.worker, 10000);
+      // Ensure this matches the dbName used in the raw json explorer for cross-tab sync
+      db = new MoltenDB('moltendb_demo', { syncEnabled: false });
 
-      // ⚡ THE MAGIC: Listen to native events straight from Rust
-      transport.onEvent = (evt) => {
+      // Hook up the global event listener (works for Leader & Followers automatically)
+      db.onEvent = (evt) => {
         const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
 
-        // Rust sends: { event: "change", collection, key, new_v }
-        // If new_v is null, it's a delete or drop.
         let type = 'change';
         if (evt.new_v === null || evt.new_v === undefined) {
           type = evt.key === '*' ? 'drop' : 'delete';
         }
 
-        // Clear the placeholder if it's there
         const placeholder = eventEntries.querySelector('.event-placeholder');
         if (placeholder) placeholder.remove();
 
         addEventEntry(ts, type, evt.collection, evt.key, evt.new_v);
       };
 
-      client = new MoltenDBClient(transport);
-      addLog('✅ MoltenDB ready — OPFS storage active', 'success');
+      await db.init();
+
+      client = new MoltenDBClient(db);
+
+      addLog(`✅ MoltenDB ready — Running as ${db.isLeader ? 'Leader' : 'Follower Proxy'}`, 'success');
       status.textContent = '✅ Ready';
       status.className = 'ready';
       runBtn.disabled = false;
@@ -758,6 +751,7 @@ await rawDb.sendMessage('compact')` },
     const t0 = performance.now();
     try {
       const wrappedCode = /\breturn\b/.test(code) ? code : 'return (' + code + ')';
+      // Note: We supply `client` as `db` and the core `db` instance as `rawDb`
       const fn = new AsyncFunction('db', 'rawDb', wrappedCode);
       const result = await fn(client, db);
       const ms = (performance.now() - t0).toFixed(1);

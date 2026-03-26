@@ -7,7 +7,7 @@
 
 **[⚡ Try it Live on StackBlitz](https://stackblitz.com/~/github.com/maximilian27/moltendb-wasm-demo?file=package.json)**
 
-[![License](https://img.shields.io/badge/license-BSL%201.1-blue?style=flat-square)](https://github.com/maximilian27/MoltenDB/blob/main/LICENSE.md)
+[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE.md)
 
 </div>
 

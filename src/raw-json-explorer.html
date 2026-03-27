@@ -220,10 +220,10 @@
       addLog('Initializing MoltenDB WASM worker…', 'info');
       db = new MoltenDB('moltendb_demo', {syncEnabled: false});
 
-      db.onEvent = (evt) => {
+      db.subscribe((evt) => {
         const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
-        let type = 'change';
 
+        let type = 'change';
         if (evt.new_v === null || evt.new_v === undefined) {
           type = evt.key === '*' ? 'drop' : 'delete';
         }
@@ -232,7 +232,7 @@
         if (placeholder) placeholder.remove();
 
         addEventEntry(ts, type, evt.collection, evt.key, evt.new_v);
-      };
+      });
       await db.init();
 
 

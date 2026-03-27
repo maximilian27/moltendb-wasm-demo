@@ -348,7 +348,7 @@
       db = new MoltenDB('moltendb_demo', { syncEnabled: false });
 
       // Hook up the global event listener (works for Leader & Followers automatically)
-      db.onEvent = (evt) => {
+      db.subscribe((evt) => {
         const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
 
         let type = 'change';
@@ -360,7 +360,7 @@
         if (placeholder) placeholder.remove();
 
         addEventEntry(ts, type, evt.collection, evt.key, evt.new_v);
-      };
+      });
 
       await db.init();
 

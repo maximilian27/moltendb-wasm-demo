@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>MoltenDB - Query Builder Explorer</title>
+  <title>MoltenDb - Query Builder Explorer</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -247,7 +247,7 @@
 <body>
 <header>
   <div>
-    <img src="/logo.png" alt="MoltenDB">
+    <img src="/logo.png" alt="MoltenDb">
     <h1>Query Builder Explorer</h1>
   </div>
   <span id="status" class="loading">⚙ Initializing WASM…</span>
@@ -298,8 +298,8 @@
 </div>
 
 <script type="module">
-  import { MoltenDB } from '@moltendb-web/core';
-  import { MoltenDBClient } from '@moltendb-web/query';
+  import { MoltenDb } from '@moltendb-web/core';
+  import { MoltenDbClient } from '@moltendb-web/query';
 
   // ── DB init ──────────────────────────────────────────────────────────────────
   let db = null;
@@ -323,7 +323,7 @@
     entry.innerHTML = `<span class="log-ts">[${ts}]</span><span class="log-${type}">${escapeHtml(msg)}</span>`;
     logEntries.appendChild(entry);
     logEntries.scrollTop = logEntries.scrollHeight;
-    console.log(`[MoltenDB ${type.toUpperCase()}] ${msg}`);
+    console.log(`[MoltenDb ${type.toUpperCase()}] ${msg}`);
   }
 
   function addEventEntry(ts, type, collection, key, newV) {
@@ -342,10 +342,10 @@
 
   async function initDB() {
     try {
-      addLog('Initializing MoltenDB…', 'info');
+      addLog('Initializing MoltenDb…', 'info');
 
       // Ensure this matches the dbName used in the raw json explorer for cross-tab sync
-      db = new MoltenDB('moltendb_demo', { syncEnabled: false });
+      db = new MoltenDb('moltendb_demo', { syncEnabled: false });
 
       // Hook up the global event listener (works for Leader & Followers automatically)
       db.subscribe((evt) => {
@@ -364,9 +364,9 @@
 
       await db.init();
 
-      client = new MoltenDBClient(db);
+      client = new MoltenDbClient(db);
 
-      addLog(`✅ MoltenDB ready — Running as ${db.isLeader ? 'Leader' : 'Follower Proxy'}`, 'success');
+      addLog(`✅ MoltenDb ready — Running as ${db.isLeader ? 'Leader' : 'Follower Proxy'}`, 'success');
       status.textContent = '✅ Ready';
       status.className = 'ready';
       runBtn.disabled = false;
@@ -374,7 +374,7 @@
       clearBtn.disabled = false;
     } catch (e) {
       addLog('❌ Init failed: ' + e.message, 'error');
-      console.error('[MoltenDB] Init error:', e);
+      console.error('[MoltenDb] Init error:', e);
       status.textContent = '❌ Init failed: ' + e.message;
       status.className = 'error';
     }
@@ -746,7 +746,7 @@ await rawDb.sendMessage('compact')` },
     if (!code) { addLog('Editor is empty', 'warn'); return; }
 
     addLog(`→ Running query builder expression…`, 'info');
-    console.log('[MoltenDB] Running code:', code);
+    console.log('[MoltenDb] Running code:', code);
 
     const t0 = performance.now();
     try {
@@ -755,14 +755,13 @@ await rawDb.sendMessage('compact')` },
       const fn = new AsyncFunction('db', 'rawDb', wrappedCode);
       const result = await fn(client, db);
       const ms = (performance.now() - t0).toFixed(1);
-      console.log('[MoltenDB] Result:', result);
-      const data = mapToObject(result);
-      const summary = summariseResult(data);
+      console.log('[MoltenDb] Result:', result);
+      const summary = summariseResult(result);
       addLog(`✅ Completed in ${ms} ms${summary ? ' — ' + summary : ''}`, 'success');
-      showResult(data, ms, false);
+      showResult(result, ms, false);
     } catch (e) {
       const ms = (performance.now() - t0).toFixed(1);
-      console.error('[MoltenDB] Error:', e);
+      console.error('[MoltenDb] Error:', e);
       addLog(`❌ Failed in ${ms} ms: ${e.message}`, 'error');
       showResult({ error: e.message }, ms, true);
     }
@@ -770,21 +769,6 @@ await rawDb.sendMessage('compact')` },
 
   // AsyncFunction constructor — like Function but supports await
   const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
-
-  function mapToObject(data) {
-    if (data instanceof Map) {
-      const obj = {};
-      for (const [k, v] of data) obj[k] = mapToObject(v);
-      return obj;
-    }
-    if (Array.isArray(data)) return data.map(mapToObject);
-    if (data && typeof data === 'object') {
-      const obj = {};
-      for (const k in data) obj[k] = mapToObject(data[k]);
-      return obj;
-    }
-    return data;
-  }
 
   function summariseResult(data) {
     if (data === null || data === undefined) return 'null';
@@ -835,8 +819,7 @@ await rawDb.sendMessage('compact')` },
         addLog(`  → Seeding via builder…`, 'info');
         const fn = new AsyncFunction('db', 'rawDb', q.code);
         const r = await fn(client, db);
-        const data = mapToObject(r);
-        addLog(`  ✅ Seeded — ${summariseResult(data)}`, 'success');
+        addLog(`  ✅ Seeded — ${summariseResult(q)}`, 'success');
       }
       addLog('✅ All demo data seeded successfully!', 'success');
       seedBtn.textContent = '✅ Seeded!';

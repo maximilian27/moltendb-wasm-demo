@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>MoltenDB - Query Explorer</title>
+  <title>MoltenDb - Query Explorer</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -115,7 +115,7 @@
 <body>
 <header>
   <div>
-    <img src="/logo.png" alt="MoltenDB">
+    <img src="/logo.png" alt="MoltenDb">
     <h1>Query Explorer</h1>
   </div>
   <span id="status" class="loading">⚙ Initializing WASM…</span>
@@ -175,7 +175,7 @@
 </div>
 
 <script type="module">
-  import {MoltenDB} from '@moltendb-web/core';
+  import {MoltenDb} from '@moltendb-web/core';
 
   // ── DB init ──────────────────────────────────────────────────────────────────
   let db = null;
@@ -198,7 +198,7 @@
     entry.innerHTML = `<span class="log-ts">[${ts}]</span><span class="log-${type}">${escapeHtml(msg)}</span>`;
     logEntries.appendChild(entry);
     logEntries.scrollTop = logEntries.scrollHeight;
-    console.log(`[MoltenDB ${type.toUpperCase()}] ${msg}`);
+    console.log(`[MoltenDb ${type.toUpperCase()}] ${msg}`);
   }
 
   function addEventEntry(ts, type, collection, key, newV) {
@@ -217,8 +217,8 @@
 
   async function initDB() {
     try {
-      addLog('Initializing MoltenDB WASM worker…', 'info');
-      db = new MoltenDB('moltendb_demo', {syncEnabled: false});
+      addLog('Initializing MoltenDb WASM worker…', 'info');
+      db = new MoltenDb('moltendb_demo', {syncEnabled: false});
 
       db.subscribe((evt) => {
         const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
@@ -236,7 +236,7 @@
       await db.init();
 
 
-      addLog('✅ MoltenDB ready — OPFS storage active', 'success');
+      addLog('✅ MoltenDb ready — OPFS storage active', 'success');
       status.textContent = '✅ Ready';
       status.className = 'ready';
       runBtn.disabled = false;
@@ -244,7 +244,7 @@
       clearBtn.disabled = false;
     } catch (e) {
       addLog('❌ Init failed: ' + e.message, 'error');
-      console.error('[MoltenDB] Init error:', e);
+      console.error('[MoltenDb] Init error:', e);
       status.textContent = '❌ Init failed: ' + e.message;
       status.className = 'error';
     }
@@ -415,23 +415,8 @@
     }
   }
 
-  function mapToObject(data) {
-    if (data instanceof Map) {
-      const obj = {};
-      for (const [k, v] of data) obj[k] = mapToObject(v);
-      return obj;
-    }
-    if (Array.isArray(data)) return data.map(mapToObject);
-    if (data && typeof data === 'object') {
-      const obj = {};
-      for (const k in data) obj[k] = mapToObject(data[k]);
-      return obj;
-    }
-    return data;
-  }
 
   function summariseResult(data) {
-    data = mapToObject(data);
     if (data === null || data === undefined) return 'null';
     if (Array.isArray(data)) return `${data.length} row(s)`;
     if (typeof data === 'object') {
@@ -443,7 +428,6 @@
   }
 
   function showResult(data, ms, isError) {
-    data = mapToObject(data);
     if (ms !== null) resultMeta.textContent = `${ms} ms`;
     if (isError) {
       resultEl.innerHTML = `<span class="result-error">${escapeHtml(JSON.stringify(data, null, 2))}</span>`;

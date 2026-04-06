@@ -504,6 +504,25 @@
   .where({ in_stock: true, tags: { $contains: 'gaming' }, price: { $lt: 2000 } })
   .exec()` },
 
+    // ── Logical operators ──
+    { group: 'Logical Operators', num: 58, label: '$or — Apple brand OR XPS model', action: 'get', code:
+          `await db.collection('laptops').get()
+  .fields(['brand', 'model'])
+  .where({ $or: [{ brand: { $ct: 'Apple' } }, { model: { $ct: 'XPS' } }] })
+  .exec()` },
+
+    { group: 'Logical Operators', num: 59, label: '$and — in stock AND price under $2000', action: 'get', code:
+          `await db.collection('laptops').get()
+  .fields(['brand', 'model', 'price'])
+  .where({ $and: [{ in_stock: true }, { price: { $lt: 2000 } }] })
+  .exec()` },
+
+    { group: 'Logical Operators', num: 60, label: '$or + top-level — in-stock Apple or Dell', action: 'get', code:
+          `await db.collection('laptops').get()
+  .fields(['brand', 'model', 'price'])
+  .where({ in_stock: true, $or: [{ brand: { $eq: 'Apple' } }, { brand: { $eq: 'Dell' } }] })
+  .exec()` },
+
     // ── Sort ──
     { group: 'Sort', num: 21, label: 'Sort by price asc', action: 'get', code:
           `await db.collection('laptops').get()

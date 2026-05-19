@@ -93,6 +93,7 @@ header img { height: 5em; margin-right: 10px; filter: drop-shadow(0 2px 4px rgba
 .event-change { background: rgba(81, 207, 102, 0.2); color: #51cf66; }
 .event-delete { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
 .event-drop { background: rgba(245, 166, 35, 0.2); color: #f5a623; }
+.event-system { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
 .event-col { color: #79c0ff; } .event-key { color: #a5d6ff; } .event-ver { color: #f2cc60; }
 .event-placeholder { padding: 24px 12px; text-align: center; color: rgba(255, 255, 255, 0.2); font-size: 0.78em; font-style: italic; }
 .events-clear-btn { background: none; border: 1px solid rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 0.72em; cursor: pointer; }

@@ -15,8 +15,8 @@ export default defineConfig({
     port: 6660,
     open: true,
   },
-    optimizeDeps: {
-        // Tells Vite not to pre-bundle our core library
-        exclude: ['@moltendb-web/core']
-    }
+  optimizeDeps: {
+    // Tells Vite not to pre-bundle our core library
+    exclude: ['@moltendb-web/core'],
+  },
 });

@@ -1,72 +1,85 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <title>MoltenDb - Query Explorer</title>
-  <link rel="stylesheet" href="./explorer.css">
-</head>
-<body>
-<header>
-  <div>
-    <img src="/logo.png" alt="MoltenDb">
-    <h1>Query Explorer</h1>
-  </div>
-  <span id="status" class="loading">⚙ Initializing WASM…</span>
-  <button class="seed-btn" id="seedBtn" disabled>⚡ Seed Demo Data</button>
-  <button class="clear-btn" id="clearBtn" disabled>🗑 Clear OPFS Data</button>
-</header>
-
-<div class="main">
-  <!-- Left: query list -->
-  <div class="query-list-panel">
-    <div class="panel-title">Example Queries</div>
-    <div class="query-search"><input type="text" id="searchInput" placeholder="Filter queries…"></div>
-    <div class="query-list" id="queryList"></div>
-  </div>
-
-  <!-- Middle: editor -->
-  <div class="editor-panel">
-    <div class="editor-toolbar">
-      <div class="panel-title">Query Editor</div>
-      <select class="action-select" id="actionSelect">
-        <option value="get">GET</option>
-        <option value="set">SET</option>
-        <option value="update">UPDATE</option>
-        <option value="delete">DELETE</option>
-        <option value="compact">COMPACT</option>
-      </select>
-      <button class="run-btn" id="runBtn" disabled>▶ Run</button>
-    </div>
-    <textarea id="editor" spellcheck="false" placeholder="Paste or type a JSON query here, then click Run…"></textarea>
-  </div>
-
-  <!-- Right: result + log -->
-  <div class="result-panel">
-    <div class="result-toolbar">
-      <div class="panel-title">Result</div>
-      <span class="result-meta" id="resultMeta"></span>
-    </div>
-    <div id="result"><div class="result-placeholder">Run a query to see results here.</div></div>
-    <div class="log-panel">
-      <div class="log-toolbar">
-        <div class="panel-title">Activity Log</div>
-        <button class="log-clear-btn" id="logClearBtn">Clear</button>
+  <head>
+    <meta charset="utf-8" />
+    <title>MoltenDb - Query Explorer</title>
+    <link rel="stylesheet" href="./explorer.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <img src="/logo.png" alt="MoltenDb" />
+        <h1>Query Explorer</h1>
       </div>
-      <div id="logEntries"></div>
-    </div>
-  </div>
+      <span id="status" class="loading">⚙ Initializing WASM…</span>
+      <button class="seed-btn" id="seedBtn" disabled>⚡ Seed Demo Data</button>
+      <button class="clear-btn" id="clearBtn" disabled>🗑 Clear OPFS Data</button>
+    </header>
 
-  <!-- Live Events -->
-  <div class="events-panel">
-    <div class="events-toolbar">
-      <div class="ws-dot" id="wsDot"></div>
-      <div class="panel-title">Live Events</div>
-      <button class="events-clear-btn" id="eventsClearBtn">Clear</button>
-    </div>
-    <div id="eventEntries"><div class="event-placeholder">Mutation events will appear here in real time — just like a WebSocket feed.</div></div>
-  </div>
-</div>
+    <div class="main">
+      <!-- Left: query list -->
+      <div class="query-list-panel">
+        <div class="panel-title">Example Queries</div>
+        <div class="query-search">
+          <input type="text" id="searchInput" placeholder="Filter queries…" />
+        </div>
+        <div class="query-list" id="queryList"></div>
+      </div>
 
-<script type="module" src="./raw-json-explorer.js"></script>
-</body>
+      <!-- Middle: editor -->
+      <div class="editor-panel">
+        <div class="editor-toolbar">
+          <div class="panel-title">Query Editor</div>
+          <select class="action-select" id="actionSelect">
+            <option value="get">GET</option>
+            <option value="set">SET</option>
+            <option value="update">UPDATE</option>
+            <option value="delete">DELETE</option>
+            <option value="stats">STATS</option>
+            <option value="compact">COMPACT</option>
+          </select>
+          <button class="run-btn" id="runBtn" disabled>▶ Run</button>
+        </div>
+        <textarea
+          id="editor"
+          spellcheck="false"
+          placeholder="Paste or type a JSON query here, then click Run…"
+        ></textarea>
+      </div>
+
+      <!-- Right: result + log -->
+      <div class="result-panel">
+        <div class="result-toolbar">
+          <div class="panel-title">Result</div>
+          <span class="result-meta" id="resultMeta"></span>
+        </div>
+        <div id="result">
+          <div class="result-placeholder">Run a query to see results here.</div>
+        </div>
+        <div class="log-panel">
+          <div class="log-toolbar">
+            <div class="panel-title">Activity Log</div>
+            <button class="log-clear-btn" id="logClearBtn">Clear</button>
+          </div>
+          <div id="logEntries"></div>
+        </div>
+      </div>
+
+      <!-- Live Events -->
+      <div class="events-panel">
+        <div class="events-toolbar">
+          <div class="ws-dot" id="wsDot"></div>
+          <div class="panel-title">Live Events</div>
+          <button class="events-clear-btn" id="eventsClearBtn">Clear</button>
+        </div>
+        <div id="eventEntries">
+          <div class="event-placeholder">
+            Mutation events will appear here in real time — just like a WebSocket feed.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./raw-json-explorer.js"></script>
+  </body>
 </html>

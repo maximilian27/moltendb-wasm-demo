@@ -59,7 +59,7 @@ function addEventEntry(ts, type, collection, key, newV) {
 async function initDB() {
   try {
     addLog('Initializing MoltenDb WASM worker…', 'info');
-    db = new MoltenDb('moltendb_demo', { syncEnabled: false });
+    db = new MoltenDb('moltendb_demo', { inMemory: false });
 
     db.subscribe((evt) => {
       const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
@@ -88,7 +88,10 @@ async function initDB() {
     });
     await db.init();
 
-    addLog('✅ MoltenDb ready — OPFS storage active', 'success');
+    addLog(
+      `✅ MoltenDb ready — Running as ${db.isLeader ? 'Leader' : 'Follower Proxy'}`,
+      'success'
+    );
     status.textContent = '✅ Ready';
     status.className = 'ready';
     runBtn.disabled = false;
@@ -803,6 +806,27 @@ const QUERIES = [
       collection: 'laptops',
       where: { tags: { $contains: 'gaming' } },
       count: 2,
+    },
+  },
+  {
+    group: 'Bulk Delete',
+    num: '63c',
+    label: 'Count-only delete — remove the 2 oldest documents (no where)',
+    action: 'delete',
+    body: {
+      collection: 'laptops',
+      count: 2,
+    },
+  },
+  {
+    group: 'Bulk Delete',
+    num: '63d',
+    label: 'Count-only delete — remove the 2 newest documents (order=desc)',
+    action: 'delete',
+    body: {
+      collection: 'laptops',
+      count: 2,
+      order: 'desc',
     },
   },
   {

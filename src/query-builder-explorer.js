@@ -69,7 +69,7 @@ async function initDB() {
     addLog('Initializing MoltenDb…', 'info');
 
     // Ensure this matches the dbName used in the raw json explorer for cross-tab sync
-    db = new MoltenDb('moltendb_demo', { syncEnabled: false });
+    db = new MoltenDb('moltendb_demo', { inMemory: false });
 
     // Hook up the global event listener (works for Leader & Followers automatically)
     db.subscribe((evt) => {
@@ -707,6 +707,27 @@ const QUERIES = [
     code: `await db.collection('laptops').delete()
   .where({ tags: { $contains: 'gaming' } })
   .count(2)
+  .exec()`,
+  },
+
+  {
+    group: 'Bulk Delete',
+    num: '63c',
+    label: 'Count-only delete — remove the 2 oldest documents (no where)',
+    action: 'delete',
+    code: `await db.collection('laptops').delete()
+  .count(2)
+  .exec()`,
+  },
+
+  {
+    group: 'Bulk Delete',
+    num: '63d',
+    label: 'Count-only delete — remove the 2 newest documents (order=desc)',
+    action: 'delete',
+    code: `await db.collection('laptops').delete()
+  .count(2)
+  .order('desc')
   .exec()`,
   },
 

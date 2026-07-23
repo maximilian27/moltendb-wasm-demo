@@ -15,7 +15,7 @@
     "vite": "^8.0.8"
   },
   "dependencies": {
-    "@moltendb-web/core": "file:public/moltendb-web-core-2.2.0.tgz",
-    "@moltendb-web/query": "file:public/moltendb-web-query-2.2.0.tgz"
+    "@moltendb-web/core": "^2.3.0",
+    "@moltendb-web/query": "^2.3.0"
   }
 }
